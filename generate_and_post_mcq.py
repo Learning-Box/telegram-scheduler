@@ -3,7 +3,7 @@ import json
 import requests
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-BOT_TOKEN = "<YOUR BOT TOKEN HERE>"  # Or set as GitHub secret
+BOT_TOKEN = "<YOUR BOT TOKEN HERE>"
 CHAT_ID = "<YOUR CHAT ID HERE>"
 
 # Topics list
@@ -37,12 +37,32 @@ inputs = tokenizer(prompt, return_tensors="pt")
 outputs = model.generate(**inputs, max_new_tokens=150)
 text = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-# Basic parsing
-lines = text.split("\n")
-question = lines[0]
-options = {line[0]: line[2:].strip() for line in lines[1:5]}
-answer = lines[5].split(":")[1].strip()
-explanation = lines[6].split(":")[1].strip()
+# Split by lines and strip
+lines = [line.strip() for line in text.split("\n") if line.strip()]
+
+# Initialize variables
+question = ""
+options = {}
+answer = ""
+explanation = ""
+
+# Parse dynamically
+for line in lines:
+    if line.startswith("Question"):
+        question = line.split(":",1)[1].strip() if ":" in line else line
+    elif line.startswith(("A)","B)","C)","D)")):
+        options[line[0]] = line[2:].strip()
+    elif line.lower().startswith("answer"):
+        answer = line.split(":",1)[1].strip() if ":" in line else line
+    elif line.lower().startswith("explanation"):
+        explanation = line.split(":",1)[1].strip() if ":" in line else line
+
+# Fallback if model missed parts
+if not question: question = "Question not generated properly."
+for o in ["A","B","C","D"]:
+    if o not in options: options[o] = "Option missing"
+if not answer: answer = "Answer not generated"
+if not explanation: explanation = "Explanation not generated"
 
 # Prepare Telegram message
 message = f"""
